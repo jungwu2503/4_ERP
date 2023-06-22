@@ -1,0 +1,124 @@
+// Solution 부분 추가 사항
+public class Solution {
+	LibraryBookService lbs;
+	
+	private Solution() {
+		lbs = new LibraryBookService();
+	}
+	
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		Solution solution = new Solution();
+		solution.getUserInfo("user1");
+		solution.returnBook();
+	}
+	
+	public void returnBook() {
+		try {
+			if (lbs.returnBookService(3)) {
+				System.out.println("성공!");
+			} else {
+				System.out.println("실패!");
+			}			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+	}
+}
+
+
+// LibraryBookService 부분 메서드 (반납)
+public boolean returnBookService(int bookSeq) throws SQLException {
+		
+  //반납안된 책 리스트
+  //result = dao.selectReturnedYetList(userId);
+
+  boolean flag = dao.updateBookcopyPosition(bookSeq);
+
+  if (flag) {
+    System.out.println("position update succeed!");
+  } else {
+    System.out.println("position update failed!");
+  }
+
+  flag = dao.updateReturnDate(bookSeq);
+
+  if (flag) {
+    System.out.println("returnDate update succeed!");
+  } else {
+    System.out.println("returnDate update failed!");
+  }
+
+  return flag;
+}
+
+
+// LibraryDAO 부분 쿼리 메서드 3개
+public ArrayList<BookUseStatusVO> selectReturnedYetList(String userId) throws SQLException {
+  ArrayList<BookUseStatusVO> list = new ArrayList<BookUseStatusVO>();
+
+  StringBuilder sb = new StringBuilder("select bs.book_seq, bs.user_id, bs.borrow_start, bs.borrow_end, bs.return_date ");
+  sb.append("from book_use_status bs ");
+  sb.append("join book_user bu ");
+  sb.append("on bs.user_id = bu.user_id ");
+  sb.append("where bu.user_id = ? and bs.borrow_end IS NULL");  
+  String sql = sb.toString();
+  System.out.print("이거 sql" + sql);
+  Connection con = manager.getConnection();
+  PreparedStatement pstmt = con.prepareStatement(sql);
+  pstmt.setString(1, userId);
+  ResultSet rs = pstmt.executeQuery();
+  while(rs.next()) {
+    BookUseStatusVO vo = new BookUseStatusVO(rs.getInt(4), rs.getString(5), rs.getTimestamp(6), rs.getTimestamp(7), rs.getTimestamp(8));
+    vo.setBookIsbn(rs.getString(1));
+    vo.setBookTitle(rs.getString(2));
+    vo.setBookAuthor(rs.getString(3));
+
+    list.add(vo);
+  }
+
+  manager.closeConnection(rs, pstmt, con);
+
+  return list;
+}
+	
+public boolean updateBookcopyPosition(int bookSeq) throws SQLException {
+  boolean flag = false;
+
+  String sql = "update book_copy set book_position = 'BS-0001' where book_seq = ?";
+  try {
+    Connection con = manager.getConnection();
+    PreparedStatement pstmt = con.prepareStatement(sql);
+    pstmt.setInt(1, bookSeq);
+
+    int affectedCount = pstmt.executeUpdate();
+    if(affectedCount>0) {
+      flag = true;
+    }
+    manager.closeConnection(null, pstmt, con);
+  } catch (SQLException se) {
+    se.printStackTrace();
+  }
+  return flag;
+}
+	
+//book_use_status 업데이트
+public boolean updateReturnDate(int bookSeq) throws SQLException {
+  boolean flag = false;
+
+  String sql = "update book_use_status set return_date = now() where book_seq = ?";
+  try {
+    Connection con = manager.getConnection();
+    PreparedStatement pstmt = con.prepareStatement(sql);
+    pstmt.setInt(1, bookSeq);
+
+    int affectedCount = pstmt.executeUpdate();
+    if(affectedCount>0) {
+      flag = true;
+    }
+    manager.closeConnection(null, pstmt, con);
+  } catch (SQLException se) {
+    se.printStackTrace();
+  }
+  return flag;
+}
